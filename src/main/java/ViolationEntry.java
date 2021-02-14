@@ -1,4 +1,6 @@
-
+/**
+ * Запись ошибки валидации
+ */
 public class ViolationEntry {
     private final Field violationField;
     private final int violationRow;

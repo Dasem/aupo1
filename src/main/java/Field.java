@@ -1,3 +1,7 @@
+/**
+ * Сущность "Поля", соответствует полям из CSV,
+ * при редактировании необходимо добавить соответствующие поля в {@link Client}
+ */
 public enum Field {
     ID("Идентификационный номер клиента", 0),
     CARD_ID("Идентификационный номер карты", 1),
@@ -9,8 +13,8 @@ public enum Field {
 
     RECORD("Вся запись", -1);
 
-    private String title;
-    private int csvOrdinal;
+    private final String title;
+    private final int csvOrdinal;
 
     Field(String title, int csvOrdinal) {
         this.title = title;

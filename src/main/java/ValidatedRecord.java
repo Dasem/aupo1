@@ -1,5 +1,8 @@
 import java.util.*;
 
+/**
+ * Провалидированный клиент с результатами валидации
+ */
 class ValidatedRecord {
     private final List<ViolationEntry> violationEntries;
     private final Client client;

@@ -1,6 +1,10 @@
 import java.math.*;
 import java.util.*;
 
+/**
+ * Сущность "Клиент",
+ * при редактировании необходимо добавить соответствующие поля в {@link Field}
+ */
 class Client {
     private String id;
     private String cardId;

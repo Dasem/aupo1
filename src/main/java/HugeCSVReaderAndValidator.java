@@ -9,6 +9,9 @@ import java.text.*;
 import java.util.*;
 import java.util.stream.*;
 
+/**
+ * Класс - обёртка для чтения и валидации CSV файлов
+ */
 public class HugeCSVReaderAndValidator implements AutoCloseable {
     private int currentRow = 0;
     private final String fileName;
@@ -112,11 +115,11 @@ public class HugeCSVReaderAndValidator implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public void close() throws IOException {
         try {
             reader.close();
         } catch (Exception e) {
-            throw new RuntimeException(MessageFormat.format("Невозможно закрытие файла ''{0}''", fileName));
+            throw new IOException(MessageFormat.format("Невозможно закрытие файла ''{0}''", fileName));
         }
     }
 }

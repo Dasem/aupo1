@@ -1,3 +1,6 @@
+/**
+ * Тип операции
+ */
 enum OperationType {
     DEBITING("Списание"),
     CREDITING("Зачисление");
