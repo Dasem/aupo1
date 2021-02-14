@@ -20,82 +20,82 @@ public class Main {
         while ((action = menu()) != Action.EXIT) {
             if (action.isOperation() && csvFileNames.isEmpty()) {
                 System.out.println(MessageFormat.format("Список файлов пуст. Добавьте файлы для анализа с помощью пункта меню ''{0}''", Action.ADD_FILE.getTitle()));
-                continue;
-            }
-            switch (action) {
-                case ADD_FILE:
-                    System.out.print("Введите путь до файла: ");
-                    String path = sc.next();
-                    File file = new File(path);
-                    if (!file.exists()) {
-                        System.out.println(MessageFormat.format("Файла ''{0}'' не существует", path));
-                    } else if (file.isDirectory()) {
-                        System.out.println(MessageFormat.format("''{0}'' является директорией, необходимо указание CSV-файла", path));
-                    } else {
-                        csvFileNames.add(path);
-                        System.out.println(MessageFormat.format("Файл ''{0}'' успешно добавлен в список анализируемых файлов", file.getName()));
-                    }
-                    break;
-                case CLEAR_FILES:
-                    csvFileNames.clear();
-                    System.out.println("Список файлов очищен");
-                    break;
-                case CHECK_FILES:
-                    if (csvFileNames.isEmpty()) {
-                        System.out.println(MessageFormat.format("Список файлов пуст. Добавьте файлы для анализа с помощью пункта меню ''{0}''", Action.ADD_FILE.getTitle()));
-                    } else {
-                        System.out.println("Список файлов, готовых к анализу:");
-                        for (String filename : csvFileNames) {
-                            System.out.println("- " + filename);
+            } else {
+                switch (action) {
+                    case ADD_FILE:
+                        System.out.print("Введите путь до файла: ");
+                        String path = sc.next();
+                        File file = new File(path);
+                        if (!file.exists()) {
+                            System.out.println(MessageFormat.format("Файла ''{0}'' не существует", path));
+                        } else if (file.isDirectory()) {
+                            System.out.println(MessageFormat.format("''{0}'' является директорией, необходимо указание CSV-файла", path));
+                        } else {
+                            csvFileNames.add(path);
+                            System.out.println(MessageFormat.format("Файл ''{0}'' успешно добавлен в список анализируемых файлов", file.getName()));
                         }
-                    }
-                    break;
-                case BALANCE_BY_CARD:
-                    System.out.print("Введите карту клиента: ");
-                    String card = CharMatcher.inRange('0', '9').retainFrom(sc.next());
-                    printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
-                        if (client.getOperationAccept() == OperationAccept.ACCEPTED && card.equals(client.getCardId())) {
-                            if (client.getOperationType() == OperationType.CREDITING) {
-                                analyzeResult = analyzeResult.add(client.getSum());
-                            } else {
-                                analyzeResult = analyzeResult.subtract(client.getSum());
+                        break;
+                    case CLEAR_FILES:
+                        csvFileNames.clear();
+                        System.out.println("Список файлов очищен");
+                        break;
+                    case CHECK_FILES:
+                        if (csvFileNames.isEmpty()) {
+                            System.out.println(MessageFormat.format("Список файлов пуст. Добавьте файлы для анализа с помощью пункта меню ''{0}''", Action.ADD_FILE.getTitle()));
+                        } else {
+                            System.out.println("Список файлов, готовых к анализу:");
+                            for (String filename : csvFileNames) {
+                                System.out.println("- " + filename);
                             }
                         }
-                        return analyzeResult;
-                    }), action);
-                    break;
-                case BALANCE_BY_CLIENT:
-                    System.out.print("Введите ID клиента: ");
-                    String clientId = CharMatcher.inRange('0', '9').retainFrom(sc.next());
-                    printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
-                        if (client.getOperationAccept() == OperationAccept.ACCEPTED && clientId.equals(client.getId())) {
-                            if (client.getOperationType() == OperationType.CREDITING) {
-                                analyzeResult = analyzeResult.add(client.getSum());
-                            } else {
-                                analyzeResult = analyzeResult.subtract(client.getSum());
+                        break;
+                    case BALANCE_BY_CARD:
+                        System.out.print("Введите карту клиента: ");
+                        String card = CharMatcher.inRange('0', '9').retainFrom(sc.next());
+                        printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
+                            if (client.getOperationAccept() == OperationAccept.ACCEPTED && card.equals(client.getCardId())) {
+                                if (client.getOperationType() == OperationType.CREDITING) {
+                                    analyzeResult = analyzeResult.add(client.getSum());
+                                } else {
+                                    analyzeResult = analyzeResult.subtract(client.getSum());
+                                }
                             }
-                        }
-                        return analyzeResult;
-                    }), action);
-                    break;
-                case SUM_BY_REJECTED:
-                    printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
-                        if (client.getOperationAccept() == OperationAccept.REJECTED) {
-                            analyzeResult = analyzeResult.add(client.getSum());
-                        }
-                        return analyzeResult;
-                    }), action);
-                    break;
-                case SUM_BY_UNCONFIRMED:
-                    printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
-                        if (client.getOperationAccept() != OperationAccept.ACCEPTED) {
-                            analyzeResult = analyzeResult.add(client.getSum());
-                        }
-                        return analyzeResult;
-                    }), action);
-                    break;
-                default:
-                    throw new RuntimeException(MessageFormat.format("Ошибка в коде: необходимо добавить действие для пункта меню ''{0}''", action.getTitle()));
+                            return analyzeResult;
+                        }), action);
+                        break;
+                    case BALANCE_BY_CLIENT:
+                        System.out.print("Введите ID клиента: ");
+                        String clientId = CharMatcher.inRange('0', '9').retainFrom(sc.next());
+                        printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
+                            if (client.getOperationAccept() == OperationAccept.ACCEPTED && clientId.equals(client.getId())) {
+                                if (client.getOperationType() == OperationType.CREDITING) {
+                                    analyzeResult = analyzeResult.add(client.getSum());
+                                } else {
+                                    analyzeResult = analyzeResult.subtract(client.getSum());
+                                }
+                            }
+                            return analyzeResult;
+                        }), action);
+                        break;
+                    case SUM_BY_REJECTED:
+                        printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
+                            if (client.getOperationAccept() == OperationAccept.REJECTED) {
+                                analyzeResult = analyzeResult.add(client.getSum());
+                            }
+                            return analyzeResult;
+                        }), action);
+                        break;
+                    case SUM_BY_UNCONFIRMED:
+                        printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
+                            if (client.getOperationAccept() != OperationAccept.ACCEPTED) {
+                                analyzeResult = analyzeResult.add(client.getSum());
+                            }
+                            return analyzeResult;
+                        }), action);
+                        break;
+                    default:
+                        throw new RuntimeException(MessageFormat.format("Ошибка в коде: необходимо добавить действие для пункта меню ''{0}''", action.getTitle()));
+                }
             }
             System.out.println("--------------------------------------");
         }
