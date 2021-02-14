@@ -13,6 +13,7 @@ import java.util.*;
  */
 public class Main {
     private static final Scanner sc = new Scanner(System.in);
+    private static final List<String> csvFileNames = new ArrayList<>();
 
     public static void main(String[] args) {
         List<ViolationEntry> entries = new ArrayList<>();
@@ -30,17 +31,36 @@ public class Main {
                     entries.addAll(violationsByRecord);
                 }
             } catch (IOException e) {
-                System.out.println("Error while file reading: " + e.getLocalizedMessage());
+                System.out.println(MessageFormat.format("Ошибка при чтении файла ''{0}'': {1}", fileName, e.getLocalizedMessage()));
             } catch (CsvException e) {
-                System.out.println("Error in CSV: " + e.getLocalizedMessage());
+                System.out.println(MessageFormat.format("Ошибка в CSV-формате файла ''{0}'': {1}", fileName, e.getLocalizedMessage()));
             }
         }
         Action action;
         while ((action = menu()) != Action.EXIT) {
             BigDecimal sum = BigDecimal.ZERO;
             switch (action) {
+                case ADD_FILE:
+                    System.out.print("Введите путь до файла: ");
+                    String path = sc.next();
+                    File file = new File(path);
+                    if (!file.exists()) {
+                        System.out.println(MessageFormat.format("Файла ''{0}'' не существует", path));
+                        continue;
+                    }
+                    if (file.isDirectory()) {
+                        System.out.println(MessageFormat.format("''{0}'' является директорией, необходимо указание CSV-файла", path));
+                        continue;
+                    }
+                    csvFileNames.add(path);
+                    System.out.print(MessageFormat.format("Файл ''{0}'' успешно добавлен в список анализируемых файлов", file.getName()));
+                    break;
+                case CLEAR_FILES:
+                    csvFileNames.clear();
+                    System.out.print("Файл");
+                    break;
                 case BALANCE_BY_CARD:
-                    System.out.println("Введите карту клиента");
+                    System.out.print("Введите карту клиента: ");
                     String card = CharMatcher.inRange('0', '9').retainFrom(sc.next());
                     for (Client client : validClients) {
                         if (client.getOperationAccept() == OperationAccept.ACCEPTED && card.equals(client.getCardId())) {
@@ -53,7 +73,7 @@ public class Main {
                     }
                     break;
                 case BALANCE_BY_CLIENT:
-                    System.out.println("Введите ID клиента");
+                    System.out.print("Введите ID клиента: ");
                     String clientId = CharMatcher.inRange('0', '9').retainFrom(sc.next());
                     for (Client client : validClients) {
                         if (client.getOperationAccept() == OperationAccept.ACCEPTED && clientId.equals(client.getId())) {
@@ -79,6 +99,8 @@ public class Main {
                         }
                     }
                     break;
+                default:
+                    throw new RuntimeException(MessageFormat.format("Ошибка в коде: необходимо добавить действие для пункта меню ''{0}''", action.getTitle()));
             }
             System.out.println(sum);
         }
