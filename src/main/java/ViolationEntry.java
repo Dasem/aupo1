@@ -1,8 +1,8 @@
 
 public class ViolationEntry {
-    private Field violationField;
-    private int violationRow;
-    private String fileName;
+    private final Field violationField;
+    private final int violationRow;
+    private final String fileName;
     private String description = "";
 
     public ViolationEntry(Field violationField, int violationRow, String fileName, String description) {

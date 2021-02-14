@@ -4,7 +4,7 @@ enum OperationType {
 
     public static OperationType getFromTitle(String title) {
         for (OperationType value: values()) {
-            if (value.getTitle().equals(title)) {
+            if (value.getTitle().toLowerCase().equals(title.toLowerCase())) {
                 return value;
             }
         }

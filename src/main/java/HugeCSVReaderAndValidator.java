@@ -1,23 +1,25 @@
 import com.google.common.base.*;
 import com.opencsv.*;
 import com.opencsv.exceptions.*;
+import org.apache.commons.lang3.*;
 
 import java.io.*;
 import java.math.*;
 import java.text.*;
 import java.util.*;
+import java.util.stream.*;
 
 public class HugeCSVReaderAndValidator implements AutoCloseable {
     private int currentRow = 0;
     private final String fileName;
     private final CSVReader reader;
 
-    public HugeCSVReaderAndValidator(String fileName) throws FileNotFoundException {
-        if (fileName == null) {
+    public HugeCSVReaderAndValidator(String filePath) throws FileNotFoundException {
+        if (filePath == null) {
             throw new IllegalArgumentException("filename is null");
         }
-        this.fileName = fileName;
-        this.reader = new CSVReader(new FileReader(fileName));
+        this.fileName = new File(filePath).getName();
+        this.reader = new CSVReader(new FileReader(filePath));
     }
 
     public ValidatedRecord next() throws IOException, CsvValidationException {
@@ -84,9 +86,9 @@ public class HugeCSVReaderAndValidator implements AutoCloseable {
         }
 
         try {
-            validClient.setOperationType(OperationType.valueOf(record[Field.OPERATION_TYPE.getCsvOrdinal()]));
+            validClient.setOperationType(OperationType.getFromTitle(record[Field.OPERATION_TYPE.getCsvOrdinal()]));
         } catch (IllegalArgumentException ex) {
-            violatedRecords.add(new ViolationEntry(Field.OPERATION_TYPE, currentRow, fileName, "Тип операции должен быть один из перечисленных: 'Списание', 'Зачисление'"));
+            violatedRecords.add(new ViolationEntry(Field.OPERATION_TYPE, currentRow, fileName, "Тип операции должен быть один из перечисленных: " + StringUtils.join(Arrays.stream(OperationType.values()).map(OperationType::getTitle).collect(Collectors.toList()), ", ")));
         }
 
         try {
@@ -101,9 +103,9 @@ public class HugeCSVReaderAndValidator implements AutoCloseable {
         }
 
         try {
-            validClient.setOperationAccept(OperationAccept.valueOf(record[Field.OPERATION_ACCEPT.getCsvOrdinal()]));
+            validClient.setOperationAccept(OperationAccept.getFromTitle(record[Field.OPERATION_ACCEPT.getCsvOrdinal()]));
         } catch (IllegalArgumentException ex) {
-            violatedRecords.add(new ViolationEntry(Field.OPERATION_ACCEPT, currentRow, fileName, "Признак подтверждения операции должен быть один из перечисленных: 'Подтверждена', 'Отклонена', 'Обрабатывается'"));
+            violatedRecords.add(new ViolationEntry(Field.OPERATION_ACCEPT, currentRow, fileName, "Признак подтверждения операции должен быть один из перечисленных: " + StringUtils.join(Arrays.stream(OperationAccept.values()).map(OperationAccept::getTitle).collect(Collectors.toList()), ", ")));
         }
 
         return new ValidatedRecord(violatedRecords, validClient);

@@ -29,32 +29,31 @@ public class Main {
                     File file = new File(path);
                     if (!file.exists()) {
                         System.out.println(MessageFormat.format("Файла ''{0}'' не существует", path));
-                        continue;
-                    }
-                    if (file.isDirectory()) {
+                    } else if (file.isDirectory()) {
                         System.out.println(MessageFormat.format("''{0}'' является директорией, необходимо указание CSV-файла", path));
-                        continue;
+                    } else {
+                        csvFileNames.add(path);
+                        System.out.println(MessageFormat.format("Файл ''{0}'' успешно добавлен в список анализируемых файлов", file.getName()));
                     }
-                    csvFileNames.add(path);
-                    System.out.print(MessageFormat.format("Файл ''{0}'' успешно добавлен в список анализируемых файлов", file.getName()));
                     break;
                 case CLEAR_FILES:
                     csvFileNames.clear();
-                    System.out.print("Список файлов очищен");
+                    System.out.println("Список файлов очищен");
                     break;
                 case CHECK_FILES:
                     if (csvFileNames.isEmpty()) {
                         System.out.println(MessageFormat.format("Список файлов пуст. Добавьте файлы для анализа с помощью пункта меню ''{0}''", Action.ADD_FILE.getTitle()));
-                    }
-                    System.out.println("Список файлов, готовых к анализу:");
-                    for (String filename : csvFileNames) {
-                        System.out.println("- " + filename);
+                    } else {
+                        System.out.println("Список файлов, готовых к анализу:");
+                        for (String filename : csvFileNames) {
+                            System.out.println("- " + filename);
+                        }
                     }
                     break;
                 case BALANCE_BY_CARD:
                     System.out.print("Введите карту клиента: ");
                     String card = CharMatcher.inRange('0', '9').retainFrom(sc.next());
-                    analyzeClients((client, analyzeResult) -> {
+                    printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
                         if (client.getOperationAccept() == OperationAccept.ACCEPTED && card.equals(client.getCardId())) {
                             if (client.getOperationType() == OperationType.CREDITING) {
                                 analyzeResult = analyzeResult.add(client.getSum());
@@ -63,12 +62,12 @@ public class Main {
                             }
                         }
                         return analyzeResult;
-                    });
+                    }), action);
                     break;
                 case BALANCE_BY_CLIENT:
                     System.out.print("Введите ID клиента: ");
                     String clientId = CharMatcher.inRange('0', '9').retainFrom(sc.next());
-                    analyzeClients((client, analyzeResult) -> {
+                    printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
                         if (client.getOperationAccept() == OperationAccept.ACCEPTED && clientId.equals(client.getId())) {
                             if (client.getOperationType() == OperationType.CREDITING) {
                                 analyzeResult = analyzeResult.add(client.getSum());
@@ -77,15 +76,15 @@ public class Main {
                             }
                         }
                         return analyzeResult;
-                    });
+                    }), action);
                     break;
                 case SUM_BY_REJECTED:
-                    analyzeClients((client, analyzeResult) -> {
+                    printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
                         if (client.getOperationAccept() == OperationAccept.REJECTED) {
                             analyzeResult = analyzeResult.add(client.getSum());
                         }
                         return analyzeResult;
-                    });
+                    }), action);
                     break;
                 case SUM_BY_UNCONFIRMED:
                     printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
@@ -98,6 +97,7 @@ public class Main {
                 default:
                     throw new RuntimeException(MessageFormat.format("Ошибка в коде: необходимо добавить действие для пункта меню ''{0}''", action.getTitle()));
             }
+            System.out.println("--------------------------------------");
         }
     }
 
@@ -106,7 +106,7 @@ public class Main {
                 (analyzeResult.getViolations().isEmpty()
                         ? "Ошибок в анализируемых файлах не обнаружено"
                         : "Ошибки при обработке CSV-файлов (записи с ошибками были проигнорированы):\n" +
-                        analyzeResult.formatViolations()), action.getTitle(), analyzeResult));
+                        analyzeResult.formatViolations()), action.getTitle(), analyzeResult.getResult()));
     }
     private static AnalyzeResult analyzeClients(ClientAnalyzer analyzer) {
         List<ViolationEntry> entries = new ArrayList<>();
@@ -151,16 +151,16 @@ public class Main {
     }
 
     static class AnalyzeResult {
-        BigDecimal result;
-        List<ViolationEntry> violations;
+        private final BigDecimal result;
+        private final List<ViolationEntry> violations;
 
         private String formatViolations() {
             StringBuilder result = new StringBuilder();
             for (ViolationEntry entry : violations) {
-                result.append("В файле '").append(entry.getFileName())
-                        .append("' в строке ").append(entry.getViolationRow())
-                        .append(" для поля '").append(entry.getViolationField().getTitle())
-                        .append("' была допущена ошибка: ").append(entry.getDescription())
+                result.append("В файле ''").append(entry.getFileName())
+                        .append("'' в строке ").append(entry.getViolationRow())
+                        .append(" для поля ''").append(entry.getViolationField().getTitle())
+                        .append("'' была допущена ошибка: ").append(entry.getDescription())
                         .append("\n");
             }
             return result.toString();

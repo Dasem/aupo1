@@ -9,7 +9,7 @@ enum OperationAccept {
 
     public static OperationAccept getFromTitle(String title) {
         for (OperationAccept value: values()) {
-            if (value.getTitle().equals(title)) {
+            if (value.getTitle().toLowerCase().equals(title.toLowerCase())) {
                 return value;
             }
         }
