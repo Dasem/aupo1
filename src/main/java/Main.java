@@ -13,32 +13,15 @@ import java.util.*;
  */
 public class Main {
     private static final Scanner sc = new Scanner(System.in);
-    private static final List<String> csvFileNames = new ArrayList<>();
+    private static final List<String> csvFileNames = new LinkedList<>();
 
     public static void main(String[] args) {
-        List<ViolationEntry> entries = new ArrayList<>();
-        List<Client> validClients = new ArrayList<>();
-        for (String fileName : args) {
-            try (CSVReader reader = new CSVReader(new FileReader(fileName))) {
-                String[] record;
-                int row = 1;
-                while ((record = reader.readNext()) != null) {
-                    ValidatedRecord validatedRecord = validateRecord(record, row++, fileName);
-                    List<ViolationEntry> violationsByRecord = validatedRecord.getViolationEntries();
-                    if (violationsByRecord.isEmpty()) {
-                        validClients.add(validatedRecord.getClient());
-                    }
-                    entries.addAll(violationsByRecord);
-                }
-            } catch (IOException e) {
-                System.out.println(MessageFormat.format("Ошибка при чтении файла ''{0}'': {1}", fileName, e.getLocalizedMessage()));
-            } catch (CsvException e) {
-                System.out.println(MessageFormat.format("Ошибка в CSV-формате файла ''{0}'': {1}", fileName, e.getLocalizedMessage()));
-            }
-        }
         Action action;
         while ((action = menu()) != Action.EXIT) {
-            BigDecimal sum = BigDecimal.ZERO;
+            if (action.isOperation() && csvFileNames.isEmpty()) {
+                System.out.println(MessageFormat.format("Список файлов пуст. Добавьте файлы для анализа с помощью пункта меню ''{0}''", Action.ADD_FILE.getTitle()));
+                continue;
+            }
             switch (action) {
                 case ADD_FILE:
                     System.out.print("Введите путь до файла: ");
@@ -57,54 +40,94 @@ public class Main {
                     break;
                 case CLEAR_FILES:
                     csvFileNames.clear();
-                    System.out.print("Файл");
+                    System.out.print("Список файлов очищен");
+                    break;
+                case CHECK_FILES:
+                    if (csvFileNames.isEmpty()) {
+                        System.out.println(MessageFormat.format("Список файлов пуст. Добавьте файлы для анализа с помощью пункта меню ''{0}''", Action.ADD_FILE.getTitle()));
+                    }
+                    System.out.println("Список файлов, готовых к анализу:");
+                    for (String filename : csvFileNames) {
+                        System.out.println("- " + filename);
+                    }
                     break;
                 case BALANCE_BY_CARD:
                     System.out.print("Введите карту клиента: ");
                     String card = CharMatcher.inRange('0', '9').retainFrom(sc.next());
-                    for (Client client : validClients) {
+                    analyzeClients((client, analyzeResult) -> {
                         if (client.getOperationAccept() == OperationAccept.ACCEPTED && card.equals(client.getCardId())) {
                             if (client.getOperationType() == OperationType.CREDITING) {
-                                sum = sum.add(client.getSum());
+                                analyzeResult = analyzeResult.add(client.getSum());
                             } else {
-                                sum = sum.subtract(client.getSum());
+                                analyzeResult = analyzeResult.subtract(client.getSum());
                             }
                         }
-                    }
+                        return analyzeResult;
+                    });
                     break;
                 case BALANCE_BY_CLIENT:
                     System.out.print("Введите ID клиента: ");
                     String clientId = CharMatcher.inRange('0', '9').retainFrom(sc.next());
-                    for (Client client : validClients) {
+                    analyzeClients((client, analyzeResult) -> {
                         if (client.getOperationAccept() == OperationAccept.ACCEPTED && clientId.equals(client.getId())) {
                             if (client.getOperationType() == OperationType.CREDITING) {
-                                sum = sum.add(client.getSum());
+                                analyzeResult = analyzeResult.add(client.getSum());
                             } else {
-                                sum = sum.subtract(client.getSum());
+                                analyzeResult = analyzeResult.subtract(client.getSum());
                             }
                         }
-                    }
+                        return analyzeResult;
+                    });
                     break;
                 case SUM_BY_REJECTED:
-                    for (Client client : validClients) {
+                    analyzeClients((client, analyzeResult) -> {
                         if (client.getOperationAccept() == OperationAccept.REJECTED) {
-                            sum = sum.add(client.getSum());
+                            analyzeResult = analyzeResult.add(client.getSum());
                         }
-                    }
+                        return analyzeResult;
+                    });
                     break;
                 case SUM_BY_UNCONFIRMED:
-                    for (Client client : validClients) {
+                    printAnalyzeResult(analyzeClients((client, analyzeResult) -> {
                         if (client.getOperationAccept() != OperationAccept.ACCEPTED) {
-                            sum = sum.add(client.getSum());
+                            analyzeResult = analyzeResult.add(client.getSum());
                         }
-                    }
+                        return analyzeResult;
+                    }), action);
                     break;
                 default:
                     throw new RuntimeException(MessageFormat.format("Ошибка в коде: необходимо добавить действие для пункта меню ''{0}''", action.getTitle()));
             }
-            System.out.println(sum);
         }
+    }
 
+    private static void printAnalyzeResult(AnalyzeResult analyzeResult, Action action) {
+        System.out.println(MessageFormat.format("Результат выполнения операции ''{0}'': {1};\n" +
+                (analyzeResult.getViolations().isEmpty()
+                        ? "Ошибок в анализируемых файлах не обнаружено"
+                        : "Ошибки при обработке CSV-файлов (записи с ошибками были проигнорированы):\n" +
+                        analyzeResult.formatViolations()), action.getTitle(), analyzeResult));
+    }
+    private static AnalyzeResult analyzeClients(ClientAnalyzer analyzer) {
+        List<ViolationEntry> entries = new ArrayList<>();
+        BigDecimal analyzeResult = BigDecimal.ZERO;
+        for (String fileName : csvFileNames) {
+            try (HugeCSVReaderAndValidator reader = new HugeCSVReaderAndValidator(fileName)) {
+                ValidatedRecord validatedRecord;
+                while ((validatedRecord = reader.next()) != null) {
+                    List<ViolationEntry> violationsByRecord = validatedRecord.getViolationEntries();
+                    if (violationsByRecord.isEmpty()) {
+                        analyzeResult = analyzer.analyze(validatedRecord.getClient(), analyzeResult);
+                    }
+                    entries.addAll(violationsByRecord);
+                }
+            } catch (IOException e) {
+                System.out.println(MessageFormat.format("Ошибка при чтении файла ''{0}'': {1}", fileName, e.getLocalizedMessage()));
+            } catch (CsvException e) {
+                System.out.println(MessageFormat.format("Ошибка в CSV-формате файла ''{0}'': {1}", fileName, e.getLocalizedMessage()));
+            }
+        }
+        return new AnalyzeResult(analyzeResult, entries);
     }
 
     private static Action menu() {
@@ -127,101 +150,34 @@ public class Main {
         }
     }
 
-    private static ValidatedRecord validateRecord(String[] record, int row, String fileName) {
-        ArrayList<ViolationEntry> violatedRecords = new ArrayList<>();
-        if (record.length != Field.fieldsCount()) {
-            ViolationEntry entry = new ViolationEntry(Field.RECORD, row, fileName,
-                    "Количество полей в записи не соответствует необходимому: " + record.length + "/" + Field.fieldsCount());
-            violatedRecords.add(entry);
-            return new ValidatedRecord(violatedRecords, null);
-        }
-        Client validClient = new Client();
+    static class AnalyzeResult {
+        BigDecimal result;
+        List<ViolationEntry> violations;
 
-        String id = CharMatcher.inRange('0', '9').retainFrom(record[Field.ID.getCsvOrdinal()]);
-        if (id.isEmpty()) {
-            violatedRecords.add(new ViolationEntry(Field.ID, row, fileName, "Идентификационный номер клиента не корректен"));
-        }
-        validClient.setId(id);
-
-        String cardId = CharMatcher.inRange('0', '9').retainFrom(record[Field.CARD_ID.getCsvOrdinal()]);
-        if (cardId.isEmpty()) {
-            violatedRecords.add(new ViolationEntry(Field.CARD_ID, row, fileName, "Идентификационный номер карты не корректен"));
-        }
-        validClient.setCardId(cardId);
-
-        SimpleDateFormat formatterDate = new SimpleDateFormat("dd-M-yyyy", Locale.getDefault());
-        try {
-            Date date = formatterDate.parse(record[Field.DATE.getCsvOrdinal()]);
-            if (date.after(new Date())) {
-                violatedRecords.add(new ViolationEntry(Field.DATE, row, fileName, "Дата операции не может быть в будущем"));
-            } else {
-                validClient.setDate(date);
+        private String formatViolations() {
+            StringBuilder result = new StringBuilder();
+            for (ViolationEntry entry : violations) {
+                result.append("В файле '").append(entry.getFileName())
+                        .append("' в строке ").append(entry.getViolationRow())
+                        .append(" для поля '").append(entry.getViolationField().getTitle())
+                        .append("' была допущена ошибка: ").append(entry.getDescription())
+                        .append("\n");
             }
-        } catch (ParseException e) {
-            violatedRecords.add(new ViolationEntry(Field.DATE, row, fileName, "Дата операции не соответствует формату: 'ДД-ММ-ГГГГ'"));
+            return result.toString();
         }
 
-        SimpleDateFormat formatterTime = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        try {
-            Date time = formatterTime.parse(record[Field.TIME.getCsvOrdinal()]);
-            if (validClient.getDate() != null) {
-                Calendar dateCalendar = Calendar.getInstance();
-                Calendar timeCalendar = Calendar.getInstance();
-                timeCalendar.setTime(time);
-                dateCalendar.setTime(validClient.getDate());
-                dateCalendar.set(Calendar.HOUR, timeCalendar.get(Calendar.HOUR));
-                dateCalendar.set(Calendar.MINUTE, timeCalendar.get(Calendar.MINUTE));
-                if (dateCalendar.after(new Date())) {
-                    violatedRecords.add(new ViolationEntry(Field.TIME, row, fileName, "Дата и время операции не могут быть в будущем"));
-                } else {
-                    validClient.setTime(time);
-                }
-            }
-        } catch (ParseException e) {
-            violatedRecords.add(new ViolationEntry(Field.TIME, row, fileName, "Время операции не соответствует формату: 'ЧЧ:ММ'"));
+        public AnalyzeResult(BigDecimal result, List<ViolationEntry> violations) {
+            this.result = result;
+            this.violations = violations;
         }
 
-        try {
-            validClient.setOperationType(OperationType.valueOf(record[Field.OPERATION_TYPE.getCsvOrdinal()]));
-        } catch (IllegalArgumentException ex) {
-            violatedRecords.add(new ViolationEntry(Field.OPERATION_TYPE, row, fileName, "Тип операции должен быть один из перечисленных: 'Списание', 'Зачисление'"));
+        public BigDecimal getResult() {
+            return result;
         }
 
-        try {
-            BigDecimal sum = new BigDecimal(record[Field.SUM.getCsvOrdinal()]);
-            if (sum.compareTo(BigDecimal.ZERO) < 0) {
-                violatedRecords.add(new ViolationEntry(Field.SUM, row, fileName, "Сумма операции отрицательная"));
-            } else {
-                validClient.setSum(sum);
-            }
-        } catch (NumberFormatException ex) {
-            violatedRecords.add(new ViolationEntry(Field.SUM, row, fileName, "Сумма операции некорректна"));
+        public List<ViolationEntry> getViolations() {
+            return violations;
         }
-
-        try {
-            validClient.setOperationAccept(OperationAccept.valueOf(record[Field.OPERATION_ACCEPT.getCsvOrdinal()]));
-        } catch (IllegalArgumentException ex) {
-            violatedRecords.add(new ViolationEntry(Field.OPERATION_ACCEPT, row, fileName, "Признак подтверждения операции должен быть один из перечисленных: 'Подтверждена', 'Отклонена', 'Обрабатывается'"));
-        }
-
-        return new ValidatedRecord(violatedRecords, validClient);
     }
 }
 
-class ValidatedRecord {
-    private final List<ViolationEntry> violationEntries;
-    private final Client client;
-
-    public ValidatedRecord(List<ViolationEntry> violationEntries, Client client) {
-        this.violationEntries = violationEntries;
-        this.client = client;
-    }
-
-    public List<ViolationEntry> getViolationEntries() {
-        return violationEntries;
-    }
-
-    public Client getClient() {
-        return client;
-    }
-}
